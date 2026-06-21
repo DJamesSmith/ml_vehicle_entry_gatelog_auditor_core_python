@@ -1,0 +1,166 @@
+Program Description
+
+This program reads vehicle gate logs from a CSV file and audits each record based on predefined business rules.
+It validates vehicle numbers, security device IDs, gate codes, scan types, and timestamps.
+Valid records are further analyzed to detect duplicate scans and suspicious gate switching activity.
+After processing all records, the program classifies them into Clean, Duplicate, Suspicious, and Rejected categories,
+generates separate CSV files for each category, and produces an audit summary report containing record statistics and vehicle-wise scan counts.
+
+In other words,
+This is a batch-processing audit utility that reads vehicle scan data from a CSV file, validates records using regular expressions and datetime parsing,
+applies business rules to detect duplicates and suspicious activity, classifies records into multiple categories, and generates audit reports using Python's standard library.
+File operations are managed through context managers (with open(...)) to ensure proper resource cleanup
+------------------------------------------------------
+
+Sample input (in csv file):
+
+vehicle_no,owner_name,gate_code,scan_type,scan_time,security_device
+WB12AB1234,Rahul Sen,GATE-A,ENTRY,10-06-2026 08:45:10,DEV101
+WB12AB1234,Rahul Sen,GATE-A,ENTRY,10-06-2026 08:45:40,DEV101
+WB12AB1234,Rahul Sen,GATE-C,EXIT,10-06-2026 18:10:00,DEV205
+WB34XY7788,Mina Roy,GATE-B,ENTRY,10-06-2026 09:10:15,DEV102
+WB9A1234,Ayan Das,GATE-A,ENTRY,10-06-2026 09:20:00,DEV103
+WB45CD5555,Sneha Kar,GATE-B,EXIT,11-06-2026 01:15:00,DEV102
+WB56EF7890,Ritu Sen,GATE-X,ENTRY,INVALID_DATE,DEV105
+WB78GH4321,Arjun Roy,GATE-A,ENTRY,10-06-2026 10:05:00,DEV104
+WB78GH4321,Arjun Roy,GATE-B,ENTRY,10-06-2026 10:20:00,DEV104
+
+------------------------------------------------------
+datetime(...) = datetime(year, month, day, hour, minute, second)
+Data-Structure for variables:
+
+1. vehicle_history
+
+Stores:                     vehicle_no
+                                ↓
+                    List of previous gate visits
+
+vehicle_history = {
+    "WB12AB1234": [
+        (
+            "GATE-A",
+            datetime(2026, 6, 10, 8, 45, 10)
+        ),
+        (
+            "GATE-C",
+            datetime(2026, 6, 10, 18, 10, 0)
+        )
+    ],
+}
+
+Type:
+defaultdict[
+    str,
+    list[tuple[str, datetime]]
+]
+---------------------------
+
+2. last_scan
+    (vehicle_no, scan_type, device)
+                    ↓
+            Last timestamp
+
+
+last_scan = {tuple key: datetime}
+last_scan = {("WB12AB1234", "ENTRY", "DEV101"): datetime(2026, 6, 10, 8, 45, 10)}
+
+Type:
+dict[                               | dict[
+    tuple[str, str, str],           |     ScanKeyType,
+    datetime                        |     datetime
+]                                   | ]
+---------------------------
+
+3. vehicle_counter
+
+Stores:         vehicle_no
+                    ↓
+              number of scans
+
+Example:
+
+vehicle_counter = {
+    "WB12AB1234": 3,
+    "WB34XY7788": 1,
+    "WB78GH4321": 2
+}
+
+Type:
+Counter[str]    OR      dict[str, int]
+---------------------------
+
+4. clean_records
+
+Stores complete CSV rows.
+
+Example:
+clean_records = [
+    {
+        "vehicle_no": "WB12AB1234",
+        "owner_name": "Rahul Sen",
+        "gate_code": "GATE-A",
+        "scan_type": "ENTRY",
+        "scan_time": "10-06-2026 08:45:10",
+        "security_device": "DEV101"
+    }
+]
+
+Type:
+list[dict]
+
+More accurately:
+list[dict[str, str]]
+---------------------------
+
+5. duplicate_records
+
+Example:
+duplicate_records = [
+    {
+        "vehicle_no": "WB12AB1234",
+        "owner_name": "Rahul Sen",
+        "gate_code": "GATE-A",
+        "scan_type": "ENTRY",
+        "scan_time": "10-06-2026 08:45:40",
+        "security_device": "DEV101"
+    }
+]
+
+Type:
+list[dict[str, str]]
+---------------------------
+
+6. suspicious_records
+
+Example:
+suspicious_records = [
+    {
+        "vehicle_no": "WB78GH4321",
+        "owner_name": "Arjun Roy",
+        "gate_code": "GATE-B",
+        "scan_type": "ENTRY",
+        "scan_time": "10-06-2026 10:20:00",
+        "security_device": "DEV104"
+    }
+]
+
+Type:
+list[dict[str, str]]
+---------------------------
+
+7. rejected_records
+
+Example:
+rejected_records = [
+    {
+        "vehicle_no": "WB9A1234",
+        "owner_name": "Ayan Das",
+        "gate_code": "GATE-A",
+        "scan_type": "ENTRY",
+        "scan_time": "10-06-2026 09:20:00",
+        "security_device": "DEV103"
+    }
+]
+
+Type:
+list[dict[str, str]]
