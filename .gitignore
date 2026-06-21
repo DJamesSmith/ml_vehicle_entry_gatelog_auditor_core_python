@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.DS_Store
+.idea/
+.vscode/
+
+clean_records.csv
+duplicate_records.csv
+suspicious_records.csv
+rejected_records.csv
+audit_summary.txt
